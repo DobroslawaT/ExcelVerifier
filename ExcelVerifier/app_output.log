@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\dobro\Documents\Projekt zespo│owy\ExcelVerifier\ExcelVerifier\main.py", line 19, in <module>
+    from ui.main_window import VerifyApp
+  File "C:\Users\dobro\Documents\Projekt zespo│owy\ExcelVerifier\ExcelVerifier\ui\main_window.py", line 16, in <module>
+    from core.excel_handler import ExcelHandler
+  File "C:\Users\dobro\Documents\Projekt zespo│owy\ExcelVerifier\ExcelVerifier\core\excel_handler.py", line 8, in <module>
+    from core.image_transformer import ImageTransformer
+  File "C:\Users\dobro\Documents\Projekt zespo│owy\ExcelVerifier\ExcelVerifier\core\image_transformer.py", line 10, in <module>
+    import google.generativeai as genai
+ModuleNotFoundError: No module named 'google.generativeai'

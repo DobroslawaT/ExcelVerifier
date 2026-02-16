@@ -1,0 +1,6 @@
+pandas
+openpyxl
+PyQt5
+PyQt5-sip
+google-generativeai
+Pillowpywin32
