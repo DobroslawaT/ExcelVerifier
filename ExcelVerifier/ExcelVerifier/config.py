@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import sys
 from pathlib import Path
 
 
@@ -10,6 +11,14 @@ def get_project_root():
     # This file is in ExcelVerifier/ExcelVerifier/config.py
     # Project root is 2 levels up
     return Path(__file__).parent.parent.parent
+
+
+def get_app_data_dir():
+    """Get a writable app data directory for user-specific files."""
+    base = os.environ.get("APPDATA") or os.environ.get("LOCALAPPDATA")
+    if not base:
+        return get_project_root()
+    return Path(base) / "ExcelVerifier"
 
 
 def resolve_path(path_str):
@@ -22,17 +31,33 @@ def resolve_path(path_str):
     if path.is_absolute():
         return path
     else:
-        return (get_project_root() / path).resolve()
+        base_dir = get_app_data_dir() if getattr(sys, "frozen", False) else get_project_root()
+        return (base_dir / path).resolve()
+
+
+def get_settings_path():
+    """Get settings.json path (user-writable for frozen builds)."""
+    if getattr(sys, "frozen", False):
+        return get_app_data_dir() / "settings.json"
+    return get_project_root() / "settings.json"
 
 
 def load_settings():
     """Load settings from settings.json file."""
-    project_root = get_project_root()
-    settings_file = project_root / "settings.json"
-    
+    settings_file = get_settings_path()
+
     if settings_file.exists():
         try:
             with open(settings_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
+
+    # Backward compatibility: try legacy project-root settings.json
+    legacy_settings = get_project_root() / "settings.json"
+    if legacy_settings.exists():
+        try:
+            with open(legacy_settings, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except:
             pass
@@ -47,7 +72,7 @@ def load_settings():
 
 def save_settings(settings):
     """Save settings to settings.json file."""
-    settings_file = get_project_root() / "settings.json"
+    settings_file = get_settings_path()
     try:
         with open(settings_file, "w", encoding="utf-8") as file_handle:
             json.dump(settings, file_handle, ensure_ascii=False, indent=2)
@@ -137,7 +162,7 @@ _APPROVED_DIRECTORY_PATH = resolve_path(_settings.get("approved_directory", "Rep
 _TRANSFORM_DIRECTORY_PATH = resolve_path(_settings.get("transform_directory", "Reports"))
 
 # Auto-create directories
-ensure_directories(_REPORTS_ROOT_PATH, _APPROVED_DIRECTORY_PATH, _TRANSFORM_DIRECTORY_PATH)
+ensure_directories(get_app_data_dir(), _REPORTS_ROOT_PATH, _APPROVED_DIRECTORY_PATH, _TRANSFORM_DIRECTORY_PATH)
 
 # Export as strings for backward compatibility
 REPORTS_ROOT = str(_REPORTS_ROOT_PATH)
@@ -147,12 +172,12 @@ TRANSFORM_DIRECTORY = str(_TRANSFORM_DIRECTORY_PATH)
 # File paths
 DEFAULT_IMAGE = None  # Set by user as needed
 APPROVED_FILE = str(_APPROVED_DIRECTORY_PATH / "ApprovedRecords.xlsx")
-REPORTING_DATA_FILE = "reportingData.xlsx"
+REPORTING_DATA_FILE = str(resolve_path("reportingData.xlsx"))
 COMPANY_DB_FILE = str(get_project_root() / "company_db.json")
-DATABASE_FILE = str(get_project_root() / "excelverifier.db")
+DATABASE_FILE = str((get_app_data_dir() if getattr(sys, "frozen", False) else get_project_root()) / "excelverifier.db")
 
 # Ensure parent directories for files exist
-ensure_directories(get_project_root())
+ensure_directories(get_project_root(), get_app_data_dir())
 
 # Export Path versions for modern code (optional)
 REPORTS_ROOT_PATH = _REPORTS_ROOT_PATH
@@ -160,4 +185,4 @@ APPROVED_DIRECTORY_PATH = _APPROVED_DIRECTORY_PATH
 TRANSFORM_DIRECTORY_PATH = _TRANSFORM_DIRECTORY_PATH
 APPROVED_FILE_PATH = _APPROVED_DIRECTORY_PATH / "ApprovedRecords.xlsx"
 COMPANY_DB_FILE_PATH = get_project_root() / "company_db.json"
-DATABASE_FILE_PATH = get_project_root() / "excelverifier.db"
+DATABASE_FILE_PATH = (get_app_data_dir() if getattr(sys, "frozen", False) else get_project_root()) / "excelverifier.db"

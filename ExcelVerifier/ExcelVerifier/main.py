@@ -16,9 +16,14 @@ else:
     os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = platforms_path
 
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt
 from ui.main_window import VerifyApp
 
 if __name__ == "__main__":
+    # Enable High DPI scaling for better display on different screen sizes
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    
     app = QApplication(sys.argv)
     # This now loads the MainWindow with the Menu Bar
     window = VerifyApp() 

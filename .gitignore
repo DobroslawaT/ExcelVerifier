@@ -44,3 +44,7 @@ desktop.ini
 *.spec
 DE8D0430
 ExcelVerifier/EC345700
+build/
+dist/
+installer_output/
+*.log

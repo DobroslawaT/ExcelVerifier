@@ -678,22 +678,37 @@ class ExcelHandler:
         print(f"[REPORT] Sample data_wystawienia values: {df['Data wystawienia'].head(10).tolist()}")
 
         # --- 2. CLEANING & FORMATTING (Unchanged) ---
-        # Handle both Python date/datetime objects and strings
+        # Handle Python dates, Excel serials, and common string formats
         def convert_date(x):
             if pd.isna(x):
                 return pd.NaT
-            # If it's already a datetime object, use it
             if isinstance(x, (datetime, pd.Timestamp)):
                 return pd.Timestamp(x)
-            # If it's a date object, convert to datetime
             if isinstance(x, date) and not isinstance(x, datetime):
                 return pd.Timestamp(x)
-            # If it's a string, try parsing with format
-            if isinstance(x, str):
+            if isinstance(x, (int, float)):
                 try:
-                    return pd.Timestamp(datetime.strptime(x, '%Y-%m-%d'))
-                except:
+                    from openpyxl.utils.datetime import from_excel
+                    return pd.Timestamp(from_excel(x))
+                except Exception:
                     return pd.NaT
+            if isinstance(x, str):
+                raw = x.strip()
+                for fmt in (
+                    '%Y-%m-%d',
+                    '%d.%m.%Y',
+                    '%d/%m/%Y',
+                    '%d-%m-%Y',
+                    '%Y.%m.%d',
+                    '%d.%m.%y',
+                    '%d/%m/%y'
+                ):
+                    try:
+                        return pd.Timestamp(datetime.strptime(raw, fmt))
+                    except Exception:
+                        continue
+                parsed = pd.to_datetime(raw, errors='coerce', dayfirst=True)
+                return parsed if not pd.isna(parsed) else pd.NaT
             return pd.NaT
         
         df['Data wystawienia'] = df['Data wystawienia'].apply(convert_date)
@@ -789,7 +804,15 @@ class ExcelHandler:
             print(f"[REPORT] After date range filter: {len(df)} rows")
 
         if df.empty:
-            available_dates = f"from {df_all['Data wystawienia'].min().date()} to {df_all['Data wystawienia'].max().date()}" if not df_all.empty else "no data"
+            if df_all.empty:
+                available_dates = "no data"
+            else:
+                min_date = df_all['Data wystawienia'].min()
+                max_date = df_all['Data wystawienia'].max()
+                if pd.isna(min_date) or pd.isna(max_date):
+                    available_dates = "no valid dates"
+                else:
+                    available_dates = f"from {min_date.date()} to {max_date.date()}"
             error_msg = f"Brak danych po przefiltrowaniu dat. Available data: {available_dates}"
             print(f"[REPORT] ERROR: {error_msg}")
             raise Exception(error_msg)
@@ -1249,8 +1272,6 @@ class ExcelHandler:
             # Add data fields
             f_rot = pt_daily.AddDataField(pt_daily.PivotFields('rotacja'), "Sum of rotacja", xlSum)
             f_rot.NumberFormat = "0"
-            f_rot_miesiac = pt_daily.AddDataField(pt_daily.PivotFields('rotacja miesięczna'), "Sum of rotacja miesięczna Do usu", xlSum)
-            f_rot_miesiac.NumberFormat = "0"
             
             try:
                 pt_daily.DataPivotField.Orientation = xlColumnField

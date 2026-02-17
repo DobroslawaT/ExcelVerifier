@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QSplitter, 
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QSplitter, 
     QPushButton, QLabel, QTableWidget, QTableWidgetItem, 
     QSizePolicy, QMessageBox, QTabWidget, QDialog, QHeaderView,
     QAbstractItemView, QToolButton, QApplication, QProgressDialog,
@@ -324,7 +324,7 @@ class VerificationPage(QWidget):
         actions_row.addWidget(self.approve_btn)
         actions_row.addWidget(self.delete_btn)
         actions_row.addWidget(self.reprocess_btn)
-        
+
         controls_layout.addLayout(actions_row)
         controls_layout.addWidget(self.refresh_btn, alignment=Qt.AlignHCenter)
 
@@ -383,7 +383,8 @@ class VerificationPage(QWidget):
 
     def _create_styled_button(self, text, width):
         btn = QPushButton(text)
-        btn.setFixedWidth(width)
+        btn.setMinimumWidth(width)
+        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         btn.setFixedHeight(40)
         font = QFont()
         font.setPointSize(11)
@@ -764,6 +765,19 @@ class VerificationPage(QWidget):
             errors = []
             
             try:
+                # Release any open workbook handle for this file to avoid WinError 32
+                try:
+                    if self.excel_handler and self.excel_handler.file_path:
+                        current_path = os.path.abspath(self.excel_handler.file_path)
+                        target_path = os.path.abspath(path)
+                        if current_path == target_path and self.excel_handler.current_workbook:
+                            self.excel_handler.current_workbook.close()
+                            self.excel_handler.current_workbook = None
+                            self.excel_handler.current_df = None
+                            self.excel_handler.file_path = None
+                except Exception:
+                    pass
+
                 # Delete Excel file
                 if os.path.exists(path):
                     os.remove(path)
@@ -818,7 +832,15 @@ class VerificationPage(QWidget):
                 else:
                     QMessageBox.warning(self, "Nie Znaleziono", "Nie znaleziono plików do usunięcia.")
             except Exception as e:
-                QMessageBox.critical(self, "Usuwanie Nie Powiodło Się", f"Nie można usunąć plików:\n{e}")
+                if isinstance(e, PermissionError) and getattr(e, "winerror", None) == 32:
+                    QMessageBox.critical(
+                        self,
+                        "Usuwanie Nie Powiodło Się",
+                        "Nie można usunąć pliku, ponieważ jest otwarty w innym programie.\n"
+                        "Zamknij plik w Excelu i spróbuj ponownie."
+                    )
+                else:
+                    QMessageBox.critical(self, "Usuwanie Nie Powiodło Się", f"Nie można usunąć plików:\n{e}")
 
     def reprocess_current_report(self):
         """Reprocess the current report through AI with preprocessing."""
